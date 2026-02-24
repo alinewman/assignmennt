@@ -76,8 +76,30 @@ public class RewardsService {
 
         List<RewardsResponse> results = new ArrayList<>();
 
-        for (String custId : byCustomer.keySet()) {
-            results.add(getRewardsForCustomer(custId));
+        for (Map.Entry<String, List<Transaction>> entry : byCustomer.entrySet()) {
+            String custId = entry.getKey();
+            List<Transaction> transactions = entry.getValue();
+            String name = transactions.get(0).getCustomerName();
+
+            Map<String, Integer> monthlyPoints = new LinkedHashMap<>();
+            Map<String, List<Transaction>> grouped = transactions.stream()
+                    .collect(Collectors.groupingBy(t -> {
+                        String month = t.getDate().getMonth().getDisplayName(TextStyle.FULL, Locale.US);
+                        int year = t.getDate().getYear();
+                        return month + " " + year;
+                    }));
+
+            int total = 0;
+            for (Map.Entry<String, List<Transaction>> monthEntry : grouped.entrySet()) {
+                int monthTotal = 0;
+                for (Transaction t : monthEntry.getValue()) {
+                    monthTotal += calculatePoints(t.getAmount());
+                }
+                monthlyPoints.put(monthEntry.getKey(), monthTotal);
+                total += monthTotal;
+            }
+
+            results.add(new RewardsResponse(custId, name, monthlyPoints, total));
         }
 
         return results;
